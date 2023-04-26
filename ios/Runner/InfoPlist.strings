@@ -1,0 +1,9 @@
+/* 
+  InfoPlist.strings
+  Runner
+
+  Created by Joshua Lin on 2023/4/13.
+  
+*/
+
+"NSCameraUsageDescription" = "Please allow App to access camera for scanning QR code.";

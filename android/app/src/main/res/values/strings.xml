@@ -1,0 +1,7 @@
+<resources>
+    <string name="asset_statements" translatable="false">
+    [{
+        \"include\": \"https://authfirpdemo.ddns.net/.well-known/assetlinks.json\"
+    }]
+  </string>
+</resources>
