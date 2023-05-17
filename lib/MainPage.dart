@@ -40,8 +40,10 @@ class _MainPageState extends State<MainPage> {
   StreamSubscription<BrowserEvent>? _browserEvents;
   bool _isBrowserOpened = false;
   final ValueNotifier<Uri?> _browserResponse = ValueNotifier(null);
-  final usernameController = TextEditingController();
-  final passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final ValueNotifier<bool> _isPlatformAuthenticatorPreferred = ValueNotifier(true);
+  final ValueNotifier<bool> _isCrossPlatformAuthenticatorPreferred = ValueNotifier(false);
 
   void _showAbout() async {
     PackageInfo.fromPlatform().then((packageInfo) {
@@ -103,14 +105,14 @@ class _MainPageState extends State<MainPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('${'os'.i18n()}: $osVersion'),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Text('Passkey', style: (isPasskeySupported ? null : const TextStyle(color: Colors.grey))),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: pkSwitch,
-                        builder: (context, currentState, child) {
-                          return Switch(
+                  ValueListenableBuilder<bool>(
+                    valueListenable: pkSwitch,
+                    builder: (context, currentState, child) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Text('Passkey', style: (isPasskeySupported ? null : const TextStyle(color: Colors.grey))),
+                          Switch(
                             value: currentState,
                             inactiveThumbColor: isPasskeySupported ? null : Colors.grey,
                             inactiveTrackColor: isPasskeySupported ? null : Colors.grey,
@@ -118,6 +120,58 @@ class _MainPageState extends State<MainPage> {
                               pkSwitch.value = value;
                               Config.setPasskeyEnabled(value);
                             } : null,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const Text('Authenticator Attachment'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _isPlatformAuthenticatorPreferred,
+                        builder: (context, currentState, child) {
+                          return TextButton(
+                            onPressed: () {
+                              _isPlatformAuthenticatorPreferred.value = !_isPlatformAuthenticatorPreferred.value;
+                              if (_isPlatformAuthenticatorPreferred.value) {
+                                _isCrossPlatformAuthenticatorPreferred.value = false;
+                              }
+                            },
+                            style: ButtonStyle(
+                              backgroundColor: currentState ? MaterialStateProperty.all(Colors.white) : null,
+                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20)),
+                                  side: BorderSide(color: Colors.blue),
+                                ),
+                              ),
+                            ),
+                            child: const Text('platform'),
+                          );
+                        },
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _isCrossPlatformAuthenticatorPreferred,
+                        builder: (context, currentState, child) {
+                          return TextButton(
+                            onPressed: () {
+                              _isCrossPlatformAuthenticatorPreferred.value = !_isCrossPlatformAuthenticatorPreferred.value;
+                              if (_isCrossPlatformAuthenticatorPreferred.value) {
+                                _isPlatformAuthenticatorPreferred.value = false;
+                              }
+                            },
+                            style: ButtonStyle(
+                              backgroundColor: currentState ? MaterialStateProperty.all(Colors.white) : null,
+                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                                const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.only(topRight: Radius.circular(20), bottomRight: Radius.circular(20)),
+                                  side: BorderSide(color: Colors.blue),
+                                ),
+                              ),
+                            ),
+                            child: const Text('cross-platform'),
                           );
                         },
                       ),
@@ -269,12 +323,17 @@ class _MainPageState extends State<MainPage> {
     bool isPasskeyEnabled = await Config.isPasskeyEnabled;
     if (isPwLess && !isPasskeyEnabled) {
       Map<String, String> params = {'m': 'signup', 'u': username, 'r': DEEP_LINK_SCHEME};
+      if (_isPlatformAuthenticatorPreferred.value || _isCrossPlatformAuthenticatorPreferred.value) {
+        params['at'] = _isPlatformAuthenticatorPreferred.value ? 'platform' : 'cross-platform';
+      }
       return _openBrowser(Uri.https(Config.rpHostName, "/mindex.html", params));
     }
 
     Map<String, String> params = {'u': username};
     if (isPwLess) {
-      params['at'] = 'platform';
+      if (_isPlatformAuthenticatorPreferred.value || _isCrossPlatformAuthenticatorPreferred.value) {
+        params['at'] = _isPlatformAuthenticatorPreferred.value ? 'platform' : 'cross-platform';
+      }
     }
     else {
       params['p'] = '1';
@@ -385,11 +444,18 @@ class _MainPageState extends State<MainPage> {
     bool isPasskeyEnabled = await Config.isPasskeyEnabled;
     if (!isPasskeyEnabled) {
       Map<String, String> params = {'m': 'registerkey', 'r': DEEP_LINK_SCHEME, 't': _sessionToken ?? ''};
+      if (_isPlatformAuthenticatorPreferred.value || _isCrossPlatformAuthenticatorPreferred.value) {
+        params['at'] = _isPlatformAuthenticatorPreferred.value ? 'platform' : 'cross-platform';
+      }
       Uri uri = Uri.https(Config.rpHostName, "/mindex.html", params);
       return _openBrowser(uri);
     }
 
-    var url = Uri.https(Config.rpHostName, "/registerkey", {'at': 'platform'});
+    Map<String, String> params = {};
+    if (_isPlatformAuthenticatorPreferred.value || _isCrossPlatformAuthenticatorPreferred.value) {
+      params['at'] = _isPlatformAuthenticatorPreferred.value ? 'platform' : 'cross-platform';
+    }
+    var url = Uri.https(Config.rpHostName, "/registerkey", params);
     var headers = {'Authorization': 'Bearer ${_sessionToken ?? ''}'};
     var response = (await http.get(url, headers: headers)).json;
     if (response['status'] != 'ok') {
@@ -464,7 +530,7 @@ class _MainPageState extends State<MainPage> {
               border: const UnderlineInputBorder(),
               labelText: 'enter_username'.i18n(),
             ),
-            controller: usernameController,
+            controller: _usernameController,
           ),
           const SizedBox(height: 40),
           ValueListenableBuilder<bool>(
@@ -515,7 +581,7 @@ class _MainPageState extends State<MainPage> {
                       border: const UnderlineInputBorder(),
                       labelText: 'enter_password'.i18n(),
                     ),
-                    controller: passwordController,
+                    controller: _passwordController,
                     obscureText: true,
                   ),
                 ],
@@ -525,8 +591,8 @@ class _MainPageState extends State<MainPage> {
           const SizedBox(height: 50),
           FilledButton(
             onPressed: () {
-              final username = usernameController.text;
-              final password = passwordController.text;
+              final username = _usernameController.text;
+              final password = _passwordController.text;
               var result = _isSignUp ? _signUp(username, pwSwitch.value ? password : null) : _signIn(username, pwSwitch.value ? password : null, (tfaSwitchState.value == switchOn));
               result.then((response) {
                 if (response['status'] != 'ok') {
@@ -638,16 +704,16 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
-    usernameController.dispose();
-    passwordController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     var title = 'app_title'.i18n();
-    usernameController.text = '';
-    passwordController.text = '';
+    _usernameController.text = '';
+    _passwordController.text = '';
     return GestureDetector(
       onTap: () {
         FocusManager.instance.primaryFocus?.unfocus();
