@@ -3,7 +3,7 @@
   "app_title": "RP App Example",
   "version": "Version",
   "copyleft": "Copyleft (ɔ) 2023 AuthenTrend Technology Inc. All rights reversed.",
-  "website_url": "https://authfirpdemo.ddns.net/index.html",
+  "website_url": "https://authfirpdemo.authentrend.com/index.html",
   "ok": "OK",
   "cancel": "Cancel",
   "configurations": "Configurations",
@@ -22,5 +22,6 @@
   "pw_cant_be_empty": "Password cannot be empty.",
   "unknown_error": "Unknown error",
   "unknown_uri": "Unknown URI",
-  "invalid_response": "Invalid response"
+  "invalid_response": "Invalid response",
+  "rp_host_name": "RP Host Name"
 }

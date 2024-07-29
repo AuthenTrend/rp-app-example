@@ -1,21 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:app_links/app_links.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_browser/flutter_web_browser.dart';
 import 'package:http/http.dart' as http;
 import 'package:localization/localization.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher_string.dart';
-import 'package:uni_links/uni_links.dart';
-import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter/services.dart' show FilteringTextInputFormatter, PlatformException;
 import 'package:flutter_passkey/flutter_passkey.dart';
 
 
@@ -23,8 +19,9 @@ import 'Config.dart';
 import 'Extensions.dart';
 
 class MainPage extends StatefulWidget {
+  String rpHostName = "authfirpdemo.authentrend.com";
 
-  const MainPage({Key? key}) : super(key: key);
+  MainPage({Key? key}) : super(key: key);
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -93,6 +90,8 @@ class _MainPageState extends State<MainPage> {
       bool isPasskeyEnabled = value[1] as bool;
       bool isPasskeySupported = value[2] as bool;
       ValueNotifier<bool> pkSwitch = ValueNotifier(isPasskeyEnabled);
+      ValueNotifier<String> rpHostName = ValueNotifier(widget.rpHostName);
+      TextEditingController controller = TextEditingController();
       showDialog(
           context: context,
           barrierDismissible: false,
@@ -177,11 +176,52 @@ class _MainPageState extends State<MainPage> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  ValueListenableBuilder(
+                    valueListenable: rpHostName,
+                    builder: (context, currentState, child) {
+                      return TextFormField(
+                        controller: controller,
+                        autofocus: false,
+                        textCapitalization: TextCapitalization.none,
+                        enableIMEPersonalizedLearning: false,
+                        inputFormatters: [
+                          FilteringTextInputFormatter(RegExp('[0-9a-zA-Z-.]'), allow: true),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'rp_host_name'.i18n(),
+                          hintText: currentState,
+                          border: const OutlineInputBorder(),
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        onEditingComplete: () {
+                          FocusScope.of(context).requestFocus(FocusNode());
+                          final name = controller.text;
+                          if (name.isNotEmpty) {
+                            Config.save('rp_host_name', name).then((_) {
+                              widget.rpHostName = name;
+                              rpHostName.value = name;
+                            }).catchError((err) {
+                              '$err'.log();
+                            });
+                          }
+                        },
+                      );
+                    },
+                  ),
                 ],
               ),
               actions: [
                 TextButton(
                     onPressed: () {
+                      final name = controller.text;
+                      if (name.isNotEmpty && name != rpHostName.value) {
+                        Config.save('rp_host_name', name).then((_) {
+                          widget.rpHostName = name;
+                        }).catchError((err) {
+                          '$err'.log();
+                        });
+                      }
                       Navigator.pop(context);
                       setState(() {});
                     },
@@ -296,7 +336,7 @@ class _MainPageState extends State<MainPage> {
     if (!kIsWeb) {
       // It will handle app links while the app is already started - be it in
       // the foreground or in the background.
-      _uriLinkSub = uriLinkStream.listen((Uri? uri) {
+      _uriLinkSub = AppLinks().uriLinkStream.listen((Uri? uri) {
         if (uri == null || !mounted) return;
         'Incoming URI: $uri'.log();
         if (_isBrowserOpened) FlutterWebBrowser.close();
@@ -326,7 +366,7 @@ class _MainPageState extends State<MainPage> {
       if (_isPlatformAuthenticatorPreferred.value || _isCrossPlatformAuthenticatorPreferred.value) {
         params['at'] = _isPlatformAuthenticatorPreferred.value ? 'platform' : 'cross-platform';
       }
-      return _openBrowser(Uri.https(Config.rpHostName, "/mindex.html", params));
+      return _openBrowser(Uri.https(widget.rpHostName, "/mindex.html", params));
     }
 
     Map<String, String> params = {'u': username};
@@ -338,7 +378,7 @@ class _MainPageState extends State<MainPage> {
     else {
       params['p'] = '1';
     }
-    var url = Uri.https(Config.rpHostName, "/signup", params);
+    var url = Uri.https(widget.rpHostName, "/signup", params);
     var response = (await http.get(url)).json;
     if (response['status'] != 'ok') {
       return response;
@@ -364,7 +404,7 @@ class _MainPageState extends State<MainPage> {
       final encodedPassword = password.toSha256().toBase64();
       body['password'] = encodedPassword;
     }
-    url = Uri.https(Config.rpHostName, "/signup");
+    url = Uri.https(widget.rpHostName, "/signup");
     final headers = {
       'Accept': 'application/json',
       'Content-Type': 'application/json'
@@ -389,7 +429,7 @@ class _MainPageState extends State<MainPage> {
     bool isPasskeyEnabled = await Config.isPasskeyEnabled;
     if (isPwLess && !isPasskeyEnabled) {
       Map<String, String> params = {'m': 'signin', 'u': username, 'r': DEEP_LINK_SCHEME};
-      Uri uri = Uri.https(Config.rpHostName, "/mindex.html", params);
+      Uri uri = Uri.https(widget.rpHostName, "/mindex.html", params);
       return _openBrowser(uri);
     }
 
@@ -398,7 +438,7 @@ class _MainPageState extends State<MainPage> {
       params['p'] = '1';
       if (is2faEnabled) { params['t'] = '1'; }
     }
-    var url = Uri.https(Config.rpHostName, "/signin", params);
+    var url = Uri.https(widget.rpHostName, "/signin", params);
     var response = (await http.get(url)).json;
     if (response['status'] != 'ok') {
       return response;
@@ -424,7 +464,7 @@ class _MainPageState extends State<MainPage> {
       final encodedPassword = password?.toSha256().toBase64();
       body['password'] = encodedPassword;
     }
-    url = Uri.https(Config.rpHostName, "/signin");
+    url = Uri.https(widget.rpHostName, "/signin");
     final headers = {
       'Accept': 'application/json',
       'Content-Type': 'application/json'
@@ -434,7 +474,7 @@ class _MainPageState extends State<MainPage> {
   }
 
   Future<String> _queryUserInfo() async {
-    var url = Uri.https(Config.rpHostName, "/userinfo");
+    var url = Uri.https(widget.rpHostName, "/userinfo");
     var headers = {'Authorization': 'Bearer ${_sessionToken ?? ''}'};
     var response = await http.get(url, headers: headers);
     return response.body;
@@ -447,7 +487,7 @@ class _MainPageState extends State<MainPage> {
       if (_isPlatformAuthenticatorPreferred.value || _isCrossPlatformAuthenticatorPreferred.value) {
         params['at'] = _isPlatformAuthenticatorPreferred.value ? 'platform' : 'cross-platform';
       }
-      Uri uri = Uri.https(Config.rpHostName, "/mindex.html", params);
+      Uri uri = Uri.https(widget.rpHostName, "/mindex.html", params);
       return _openBrowser(uri);
     }
 
@@ -455,7 +495,7 @@ class _MainPageState extends State<MainPage> {
     if (_isPlatformAuthenticatorPreferred.value || _isCrossPlatformAuthenticatorPreferred.value) {
       params['at'] = _isPlatformAuthenticatorPreferred.value ? 'platform' : 'cross-platform';
     }
-    var url = Uri.https(Config.rpHostName, "/registerkey", params);
+    var url = Uri.https(widget.rpHostName, "/registerkey", params);
     var headers = {'Authorization': 'Bearer ${_sessionToken ?? ''}'};
     var response = (await http.get(url, headers: headers)).json;
     if (response['status'] != 'ok') {
@@ -475,7 +515,7 @@ class _MainPageState extends State<MainPage> {
       e.toString().log();
       return {'status': 'fail', 'msg': e.toString()};
     }
-    url = Uri.https(Config.rpHostName, "/registerkey");
+    url = Uri.https(widget.rpHostName, "/registerkey");
     headers['Accept'] = 'application/json';
     headers['Content-Type'] = 'application/json';
     response = (await http.post(url, headers: headers, body: jsonEncode(body))).json;
@@ -593,8 +633,10 @@ class _MainPageState extends State<MainPage> {
             onPressed: () {
               final username = _usernameController.text;
               final password = _passwordController.text;
+              final dismissIndicator = ''.asLoadingIndicator(context: context);
               var result = _isSignUp ? _signUp(username, pwSwitch.value ? password : null) : _signIn(username, pwSwitch.value ? password : null, (tfaSwitchState.value == switchOn));
               result.then((response) {
+                dismissIndicator();
                 if (response['status'] != 'ok') {
                   String msg = response['msg'] ?? "unknown_error".i18n();
                   msg.asAlert(context);
@@ -676,6 +718,14 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
+    Config.load('rp_host_name').then((value) {
+      'Config.load(rp_host_name): $value'.log();
+      if (value != null) {
+        widget.rpHostName = value;
+      }
+    }).catchError((err) {
+      '$err'.log();
+    });
     _loadSessionToken().then((token) {
       if (token != null) {
         final jwt = JWT.decode(token);

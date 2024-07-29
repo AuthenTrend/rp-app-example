@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [
         Locale('en', 'US'),
       ],
-      home: const MainPage(),
+      home: MainPage(),
     );
   }
 }

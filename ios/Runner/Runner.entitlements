@@ -4,8 +4,12 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>webcredentials:authfirpdemo.ddns.net</string>
-		<string>webcredentials:authfirpdemo.ddns.net?mode=developer</string>
+		<string>webcredentials:authfirpdemo.authentrend.com</string>
+		<string>webcredentials:authfirpdemo.authentrend.com?mode=developer</string>
+		<string>webcredentials:qa9.authentrend.com</string>
+		<string>webcredentials:qa9.authentrend.com?mode=developer</string>
+		<string>webcredentials:*.authentrend.com</string>
+		<string>webcredentials:*.authentrend.com?mode=developer</string>
 	</array>
 </dict>
 </plist>

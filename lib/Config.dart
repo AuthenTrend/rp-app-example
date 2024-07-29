@@ -4,9 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class Config {
 
+  static const String _keyRpHostName = "_keyRpHostName";
   static const String _keyPasskeyEnabled = "_keyPasskeyEnabled";
-
-  static const String rpHostName = "authfirpdemo.ddns.net";
 
   static Future<bool> get isPasskeySupported async {
     return FlutterPasskey().isSupported();

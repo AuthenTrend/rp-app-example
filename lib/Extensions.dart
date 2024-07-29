@@ -66,6 +66,37 @@ extension StringExt on String {
     return sha256.convert(utf8.encode(this));
   }
 
+  Function() asLoadingIndicator({required BuildContext context}) {
+    BuildContext dialogContext = context;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        dialogContext = context;
+        final message = this;
+        return AlertDialog(
+          title: message.isNotEmpty ? Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ) : null,
+          //shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+          //shape: const StadiumBorder(),
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          content: const SizedBox(
+            width: 50,
+            height: 50,
+            child: Center(child: CircularProgressIndicator(color: Colors.white)),
+          ),
+          contentPadding: const EdgeInsets.all(20),
+        );
+      },
+    );
+    dismiss() => Navigator.of(dialogContext).pop();
+    return dismiss;
+  }
+
 }
 
 extension DigestExt on Digest {
